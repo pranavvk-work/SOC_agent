@@ -2,12 +2,12 @@
 const axios = require('axios');
 
 const CONFIG = {
-  CLIENT_ID: 'c0639f6f-bb51-4057-82d5-d3d5c65fc973',
-  CLIENT_SECRET: 'ba5b2b6f-79e7-46d1-859a-04fd8273c8a7',
+  CLIENT_ID: 'd7190faa-b3ac-4c0d-b090-adc674b9705c',
+  CLIENT_SECRET: 'kMj8Q~ECiZEve_tELf02PgNh.dy7K1O4EW8e7bHM',
   TENANT_ID: 'd7ab1225-4649-4cb3-abd5-bc732bed3203',
   SUBSCRIPTION_ID: '789ffe48-9506-43da-b629-b0b9174bad4d',
-  RESOURCE_GROUP: 'SOCAutomationAgent',
-  WORKSPACE_NAME: 'socautomation',
+  RESOURCE_GROUP: 'socautomationagent',
+  WORKSPACE_NAME: 'SOCAutomation',
   // Optional: set owner to assign the incident
   OWNER: {
     OBJECT_ID: '3f49ac52-8132-4f99-ae1f-052e3036e60a',             // Azure AD objectId for the user

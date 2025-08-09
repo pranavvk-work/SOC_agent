@@ -1,124 +1,195 @@
-// Import required libraries
-require('dotenv').config();  // To load environment variables
+// Microsoft Sentinel (Azure Resource Manager) configuration
 const axios = require('axios');
 
-// Set up constants and configurations
-const API_URL = 'https://api.security.microsoft.com';  // Base URL for Sentinel API
-const CLIENT_ID = process.env.CLIENT_ID;
-const CLIENT_SECRET = process.env.CLIENT_SECRET;
-const TENANT_ID = process.env.TENANT_ID;
-const WORKSPACE_ID = process.env.WORKSPACE_ID;
-const AUTH_URL = `https://login.microsoftonline.com/${TENANT_ID}/oauth2/v2.0/token`;
+const CONFIG = {
+  CLIENT_ID: 'c0639f6f-bb51-4057-82d5-d3d5c65fc973',
+  CLIENT_SECRET: 'ba5b2b6f-79e7-46d1-859a-04fd8273c8a7',
+  TENANT_ID: 'd7ab1225-4649-4cb3-abd5-bc732bed3203',
+  SUBSCRIPTION_ID: '789ffe48-9506-43da-b629-b0b9174bad4d',
+  RESOURCE_GROUP: 'SOCAutomationAgent',
+  WORKSPACE_NAME: 'socautomation',
+  // Optional: set owner to assign the incident
+  OWNER: {
+    OBJECT_ID: '3f49ac52-8132-4f99-ae1f-052e3036e60a',             // Azure AD objectId for the user
+    USER_PRINCIPAL_NAME: 'Vijay.Ganesh@sstlab.in',        // UPN of the user
+    EMAIL: 'Vijay.Ganesh@sstlab.in',                      // Email of the user
+    ASSIGNED_TO: 'Vijay Ganesh'                // Display name
+  }
+};
 
-// Function to get an access token from Microsoft Identity Platform (OAuth2.0)
+const ARM_API_URL = 'https://management.azure.com';
+const AUTH_URL = `https://login.microsoftonline.com/${CONFIG.TENANT_ID}/oauth2/v2.0/token`;
+const API_VERSION = '2023-02-01'; // Microsoft.SecurityInsights stable API version
+
+// Validate required configuration early
+function validateConfig() {
+  const missing = Object.entries(CONFIG)
+    .filter(([k, v]) => !['OWNER'].includes(k))
+    .filter(([, v]) => !v || (typeof v === 'string' && v.startsWith('YOUR_')))
+    .map(([k]) => k);
+  if (missing.length > 0) {
+    throw new Error(`Missing required configuration values: ${missing.join(', ')}. Please fill them in CONFIG.`);
+  }
+}
+
+function buildOwnerFromConfig() {
+  const o = CONFIG.OWNER || {};
+  const hasAny = [o.OBJECT_ID, o.USER_PRINCIPAL_NAME, o.EMAIL, o.ASSIGNED_TO]
+    .some((v) => v && !String(v).startsWith('YOUR_'));
+  if (!hasAny) return undefined;
+  const owner = {};
+  if (o.OBJECT_ID && !o.OBJECT_ID.startsWith('YOUR_')) owner.objectId = o.OBJECT_ID;
+  if (o.USER_PRINCIPAL_NAME && !o.USER_PRINCIPAL_NAME.startsWith('YOUR_')) owner.userPrincipalName = o.USER_PRINCIPAL_NAME;
+  if (o.EMAIL && !o.EMAIL.startsWith('YOUR_')) owner.email = o.EMAIL;
+  if (o.ASSIGNED_TO && !o.ASSIGNED_TO.startsWith('YOUR_')) owner.assignedTo = o.ASSIGNED_TO;
+  return Object.keys(owner).length ? owner : undefined;
+}
+
+function decodeJwtPayload(token) {
+  try {
+    const [, payloadB64] = token.split('.');
+    const normalized = payloadB64.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+    const json = Buffer.from(padded, 'base64').toString('utf8');
+    return JSON.parse(json);
+  } catch {
+    return {};
+  }
+}
+
+// Acquire ARM access token (client credentials)
 async function getAccessToken() {
   const payload = new URLSearchParams();
-  payload.append('client_id', CLIENT_ID);
-  payload.append('client_secret', CLIENT_SECRET);
+  payload.append('client_id', CONFIG.CLIENT_ID);
+  payload.append('client_secret', CONFIG.CLIENT_SECRET);
   payload.append('grant_type', 'client_credentials');
-  payload.append('scope', 'https://api.security.microsoft.com/.default');  // Corrected scope for Sentinel API
-  
+  payload.append('scope', 'https://management.azure.com/.default');
+
   try {
     const response = await axios.post(AUTH_URL, payload);
-    return response.data.access_token;  // Return the access token
+    const token = response.data.access_token;
+    const claims = decodeJwtPayload(token);
+    if (claims?.scp) {
+      console.log('Token scopes:', claims.scp);
+    }
+    return token;
   } catch (error) {
-    console.error('Error retrieving access token:', error.response?.data || error);
+    console.error('Error retrieving access token:', error.response?.data || error.message);
     throw error;
   }
 }
 
-// Function to retrieve incidents from Microsoft Sentinel
+function incidentsBasePath() {
+  return `/subscriptions/${CONFIG.SUBSCRIPTION_ID}/resourceGroups/${CONFIG.RESOURCE_GROUP}/providers/Microsoft.OperationalInsights/workspaces/${CONFIG.WORKSPACE_NAME}/providers/Microsoft.SecurityInsights/incidents`;
+}
+
+// List Microsoft Sentinel incidents
 async function getIncidents() {
-  const token = await getAccessToken();  // Get OAuth token
-  
+  const token = await getAccessToken();
   try {
-    const response = await axios.get(`${API_URL}/api/incidents`, {
+    const url = `${ARM_API_URL}${incidentsBasePath()}`;
+    const response = await axios.get(url, {
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
       params: {
-        // Filter incidents (e.g., New, Active)
-        'status': 'New',  // Filter for new incidents
-        'workspaceId': WORKSPACE_ID
+        'api-version': API_VERSION,
+        '$filter': "properties/status eq 'New'",
+        '$top': 25,
+        '$orderby': 'properties/lastModifiedTimeUtc desc'
       }
     });
-
-    const incidents = response.data.value;
-    console.log('Retrieved incidents:', incidents);
+    const incidents = response.data.value || [];
+    console.log(`Retrieved ${incidents.length} incident(s)`);
     return incidents;
   } catch (error) {
-    console.error('Error retrieving incidents:', error.response?.data || error);
+    console.error('Error retrieving incidents:', error.response?.data || error.message);
     throw error;
   }
 }
 
-// Function to get details of a specific incident
+// Get details for a specific Sentinel incident
 async function getIncidentDetails(incidentId) {
-  const token = await getAccessToken();  // Get OAuth token
-  
+  const token = await getAccessToken();
   try {
-    const response = await axios.get(`${API_URL}/api/incidents/${incidentId}`, {
+    const url = `${ARM_API_URL}${incidentsBasePath()}/${incidentId}`;
+    const response = await axios.get(url, {
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
       params: {
-        'workspaceId': WORKSPACE_ID
+        'api-version': API_VERSION
       }
     });
-
     const incidentDetails = response.data;
-    console.log('Incident details:', incidentDetails);
+    console.log('Incident details retrieved');
     return incidentDetails;
   } catch (error) {
-    console.error('Error retrieving incident details:', error.response?.data || error);
+    console.error('Error retrieving incident details:', error.response?.data || error.message);
     throw error;
   }
 }
 
-// Function to update the status of an incident
-async function updateIncidentStatus(incidentId, status) {
-  const token = await getAccessToken();  // Get OAuth token
-  
+// Update Sentinel incident: status and optional owner assignment
+async function updateIncident(incidentId, { status, owner }) {
+  const token = await getAccessToken();
   try {
-    const response = await axios.patch(`${API_URL}/api/incidents/${incidentId}`, 
-    {
-      "status": status  // Status to update (e.g., 'InProgress', 'Resolved')
-    }, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
+    const url = `${ARM_API_URL}${incidentsBasePath()}/${incidentId}`;
+    const body = { properties: {} };
+    if (status) body.properties.status = status; // 'New' | 'Active' | 'Closed'
+    if (owner) body.properties.owner = owner;    // { objectId?, email?, assignedTo?, userPrincipalName? }
 
-    console.log(`Incident status updated to: ${status}`);
+    const response = await axios.patch(
+      url,
+      body,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'If-Match': '*'
+        },
+        params: {
+          'api-version': API_VERSION
+        }
+      }
+    );
+    console.log(`Incident updated${status ? `, status=${status}` : ''}${owner ? ', owner set' : ''}`);
     return response.data;
   } catch (error) {
-    console.error('Error updating incident status:', error.response?.data || error);
+    console.error('Error updating incident:', error.response?.data || error.message);
     throw error;
   }
 }
 
-// Main function to simulate the process
+// Main
 async function run() {
   try {
-    // Fetch all new incidents
-    const incidents = await getIncidents();  // Get all new incidents
-    
-    // Handle the first incident (can be customized)
-    const incidentId = incidents[0]?.id;  // Assume first incident for simplicity
-    if (incidentId) {
-      const details = await getIncidentDetails(incidentId);  // Fetch incident details
-      console.log('Incident Details:', details);
+    validateConfig();
 
-      // Example: Update the incident status to 'InProgress'
-      await updateIncidentStatus(incidentId, 'InProgress');  // Update the status
+    // Fetch incidents
+    const incidents = await getIncidents();
+    if (!incidents.length) {
+      console.log('No incidents found');
+      return;
     }
+
+    // Use the first incident
+    const first = incidents[0];
+    const incidentId = first.name; // ARM resource name (GUID)
+    const details = await getIncidentDetails(incidentId);
+    console.log('Incident ID:', incidentId);
+    console.log('Incident Title:', details?.properties?.title);
+
+    // Prepare optional owner assignment from CONFIG
+    const owner = buildOwnerFromConfig();
+
+    // Example: Move status to 'Active' and assign if owner provided
+    await updateIncident(incidentId, { status: 'Active', owner });
   } catch (error) {
-    console.error('Error during incident handling:', error);
+    console.error('Error during incident handling:', error.response?.data || error.message);
   }
 }
 
-// Execute the main function
 run();

@@ -1,6 +1,3 @@
-// server.js
-// Sentinel "incident created" webhook -> update incident directly (no need to fetch)
-
 const express = require('express');
 const axios = require('axios');
 
@@ -25,7 +22,7 @@ const OWNER = {
 };
 
 // Auth: static token OR client credentials
-const ARM_TOKEN = process.env.ARM_TOKEN || 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6IkpZaEFjVFBNWl9MWDZEQmxPV1E3SG4wTmVYRSIsImtpZCI6IkpZaEFjVFBNWl9MWDZEQmxPV1E3SG4wTmVYRSJ9.eyJhdWQiOiJodHRwczovL21hbmFnZW1lbnQuYXp1cmUuY29tIiwiaXNzIjoiaHR0cHM6Ly9zdHMud2luZG93cy5uZXQvZDdhYjEyMjUtNDY0OS00Y2IzLWFiZDUtYmM3MzJiZWQzMjAzLyIsImlhdCI6MTc1NDg5MzQxOCwibmJmIjoxNzU0ODkzNDE4LCJleHAiOjE3NTQ4OTczMTgsImFpbyI6IkFXUUFtLzhaQUFBQUtqSk9FRW1RWU5neStaVXZkU3Y1ZWZ6UTIzSkJsV3E2YlBZQy9mSVB3L0xGdzdUR0RxRFJtNlhTNWx0eWFST2N4WStpUjB6NUgyd3ozQ2NYWWZpZzFiNlVtUVZOSVpsYzdkdnJBblBRVndvbk1CODBXVHJpU2NvemFTSXpLNVYwIiwiYXBwaWQiOiJkNzE5MGZhYS1iM2FjLTRjMGQtYjA5MC1hZGM2NzRiOTcwNWMiLCJhcHBpZGFjciI6IjEiLCJpZHAiOiJodHRwczovL3N0cy53aW5kb3dzLm5ldC9kN2FiMTIyNS00NjQ5LTRjYjMtYWJkNS1iYzczMmJlZDMyMDMvIiwiaWR0eXAiOiJhcHAiLCJvaWQiOiI1MGFkY2Y4OS0yZmUxLTQyMTEtYjc4OC1iOTgwYTk5NzIzNGIiLCJyaCI6IjEuQVhFQUpSS3IxMGxHczB5cjFieHpLLTB5QTBaSWYza0F1dGRQdWtQYXdmajJNQk54QUFCeEFBLiIsInN1YiI6IjUwYWRjZjg5LTJmZTEtNDIxMS1iNzg4LWI5ODBhOTk3MjM0YiIsInRpZCI6ImQ3YWIxMjI1LTQ2NDktNGNiMy1hYmQ1LWJjNzMyYmVkMzIwMyIsInV0aSI6IkdnWEVjaEJpRmstMmd2SEhkMDlnQUEiLCJ2ZXIiOiIxLjAiLCJ4bXNfZnRkIjoiLUVpOXFsYXV6REpGTEt5QS1fTGIwRkNjaW83a01iMVBxU1pTZUdpYzFBSUJZWE5wWVhOdmRYUm9aV0Z6ZEMxa2MyMXoiLCJ4bXNfaWRyZWwiOiI3IDEyIiwieG1zX3JkIjoiMC40MkxsWUJKaUxCUVM0V0FYRWxoMS1IM1NSY1BWWHF1UFg1SVU3OW0wRGlqS0tTUndlMmZybFVXSmFWNk5fSjY3ZU5iY19RVVU1UkFTY1BPb3IyVFlkZDFfbF9PdGd6LS1HUWdEQUEiLCJ4bXNfdGNkdCI6MTYzMDkwODU1NH0.FjkYM1ZsYsAKk464nJkERxfP27kropuCwQ0iv_SeyA9MkG4QQfBtfe6Yxpt7S2U5-WNOsIbhW1rP0F7sPnvJKIhXOWLYr9L7mHVZ-vcf7kNvmdjcrg9QicC76ZnwKsOZGwj9UyghmsHE9YjJUejZ66YurYv-PDQp0JNZ79vBPHAXsjJ8kvORblls2UPVqW37T3F5EYICPqWB3WVwq-ZkyssyL2vioBUobK5Jp6ZHbfjNAwEBnocB0YZTNaM1kppIkYoEUm1z-vuH1RZdtMVC7Hj3R6v3Ofri0Zyl7Z0YYgA7YsxcWEL8BXpVZHCzPHONYdB4ao4AGVfHGbVbNjGPug';
+const ARM_TOKEN = process.env.ARM_TOKEN || "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6IkpZaEFjVFBNWl9MWDZEQmxPV1E3SG4wTmVYRSIsImtpZCI6IkpZaEFjVFBNWl9MWDZEQmxPV1E3SG4wTmVYRSJ9.eyJhdWQiOiJodHRwczovL21hbmFnZW1lbnQuYXp1cmUuY29tIiwiaXNzIjoiaHR0cHM6Ly9zdHMud2luZG93cy5uZXQvZDdhYjEyMjUtNDY0OS00Y2IzLWFiZDUtYmM3MzJiZWQzMjAzLyIsImlhdCI6MTc1NDkzNTA0NSwibmJmIjoxNzU0OTM1MDQ1LCJleHAiOjE3NTQ5Mzg5NDUsImFpbyI6IkFXUUFtLzhaQUFBQTE4U0xlU2duT3QxYnk4OXNWem5vbnhRWU43SnVzQUkySkdTdks4R2NFcnNaaytFclQxSEJVTkpvWCtVQTRMZFZ2d1R4MWVsVFNLTVAzWVNQMGRJL09XQ1h4cUNqdjBDNlFYSmttV2tqakYwNVVOYm1sMzB6YlUyT3JOVHZnNGREIiwiYXBwaWQiOiJkNzE5MGZhYS1iM2FjLTRjMGQtYjA5MC1hZGM2NzRiOTcwNWMiLCJhcHBpZGFjciI6IjEiLCJpZHAiOiJodHRwczovL3N0cy53aW5kb3dzLm5ldC9kN2FiMTIyNS00NjQ5LTRjYjMtYWJkNS1iYzczMmJlZDMyMDMvIiwiaWR0eXAiOiJhcHAiLCJvaWQiOiI1MGFkY2Y4OS0yZmUxLTQyMTEtYjc4OC1iOTgwYTk5NzIzNGIiLCJyaCI6IjEuQVhFQUpSS3IxMGxHczB5cjFieHpLLTB5QTBaSWYza0F1dGRQdWtQYXdmajJNQk54QUFCeEFBLiIsInN1YiI6IjUwYWRjZjg5LTJmZTEtNDIxMS1iNzg4LWI5ODBhOTk3MjM0YiIsInRpZCI6ImQ3YWIxMjI1LTQ2NDktNGNiMy1hYmQ1LWJjNzMyYmVkMzIwMyIsInV0aSI6ImhFVGpIQWVLYmt1UE5PbEZqOUp4QUEiLCJ2ZXIiOiIxLjAiLCJ4bXNfZnRkIjoiM1QzVjVTNU1XSlIyUFRVWkVhUU9LRlhUZ1hKNHNzOUF1VWdFcHZNYkRzUUJhbUZ3WVc1bFlYTjBMV1J6YlhNIiwieG1zX2lkcmVsIjoiNyA0IiwieG1zX3JkIjoiMC40MkxsWUJKaUxCUVM0V0FYRWxoMS1IM1NSY1BWWHF1UFg1SVU3OW0wRGlqS0tTUndlMmZybFVXSmFWNk5fSjY3ZU5iY19RVVU1UkFTY1BPb3IyVFlkZDFfbF9PdGd6LS1HUWdEQUEiLCJ4bXNfdGNkdCI6MTYzMDkwODU1NH0.ECq70XOoORG4cKHHr9A9Y6gx9PZpGLZfe9JNtbIvh-v9aQ7XqtsZp78PRlCUpGxwSSmrckVOxqQWxNGoMuRSw2I--HefwuaPjAIpTcmS4O55BEEYet54iJSYjBt0t5Juu41ioGva6MpG46sV7dKZ9xqzbroIAkQnFo4hyRaruWSlrN8v0GF1CEhlW_sADYPsDWz2u0DXJmsiEuR7TZKGI9eG4ZtwC6XJxqVG8sxyoY01XKAu9RnS-ZoKPVf4uOVUkpgba67Irx6pZfN9PvYtBqI1inYqu3-X1-s-4kP_398mbGPnbM4pQ9WXS9nVRa5OswRA2qazooNZggOlHRjZmw";
 
 const ARM_API = 'https://management.azure.com';
 const norm = (v) => (v ?? '').toString().trim().toLowerCase();
@@ -36,21 +33,14 @@ function ownerSummary(o = {}) {
   return parts.length ? parts.join(' | ') : '—';
 }
 
-function isUnassigned(o) {
-  if (!o || typeof o !== 'object') return true;
-  const { assignedTo, userPrincipalName, email, objectId } = o;
-  return [assignedTo, userPrincipalName, email, objectId].every(x => !x || !String(x).trim());
-}
-
-function buildIncidentUrl({ subscriptionId, resourceGroup, workspaceName, incidentName }) {
-  return `${ARM_API}/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}` +
-    `/providers/Microsoft.OperationalInsights/workspaces/${workspaceName}` +
-    `/providers/Microsoft.SecurityInsights/incidents/${incidentName}?api-version=${API_VERSION}`;
-}
-
 // ---------- ARM calls ----------
 async function putIncident(ids, token, etag, props) {
-  const url = buildIncidentUrl(ids);
+  const url = `${ARM_API}/subscriptions/${ids.subscriptionId}/resourceGroups/${ids.resourceGroup}` +
+    `/providers/Microsoft.OperationalInsights/workspaces/${ids.workspaceName}` +
+    `/providers/Microsoft.SecurityInsights/incidents/${ids.incidentName}?api-version=${API_VERSION}`;
+  
+  console.log(`[PUT] Attempting to update incident: ${ids.incidentName} at ${new Date().toISOString()}`);
+  
   const { data, headers } = await axios.put(
     url,
     { etag, properties: props },
@@ -59,7 +49,27 @@ async function putIncident(ids, token, etag, props) {
       timeout: 20000
     }
   );
+  
+  console.log(`[PUT] Incident update successful for ${ids.incidentName} at ${new Date().toISOString()}`);
+  
   return { data, headers };
+}
+
+async function getIncidentDetails(ids, token) {
+  const url = `${ARM_API}/subscriptions/${ids.subscriptionId}/resourceGroups/${ids.resourceGroup}` +
+    `/providers/Microsoft.OperationalInsights/workspaces/${ids.workspaceName}` +
+    `/providers/Microsoft.SecurityInsights/incidents/${ids.incidentName}?api-version=${API_VERSION}`;
+  
+  console.log(`[GET] Fetching details for incident: ${ids.incidentName} at ${new Date().toISOString()}`);
+  
+  const { data } = await axios.get(url, {
+    headers: { Authorization: `Bearer ${token}` },
+    timeout: 20000
+  });
+
+  console.log(`[GET] Incident details fetched for ${ids.incidentName} at ${new Date().toISOString()}`);
+  
+  return data;
 }
 
 // ---------- Routes ----------
@@ -86,11 +96,14 @@ app.post('/incident/activate', async (req, res) => {
   const started = Date.now();
 
   try {
+    // Extract raw data from the request body
     const raw = req.body && (req.body.body || req.body);
     if (!raw) return res.status(400).json({ error: 'empty body' });
-console.log(raw, 'raw body received');
+
     const incidentName = raw.incidentName;  // Incident ID (name)
     const correlationId = raw.correlationId || req.header('x-ms-workflow-run-id') || '';
+
+    console.log(`[POST] Webhook received at ${new Date().toISOString()}. Incident: ${incidentName}`);
 
     if (!incidentName) return res.status(400).json({ error: 'missing incidentName' });
     if (!SUBSCRIPTION_ID || !RESOURCE_GROUP || !WORKSPACE_NAME) {
@@ -106,59 +119,61 @@ console.log(raw, 'raw body received');
 
     const token = ARM_TOKEN;
 
-    // Extract incident data directly available in the request body
-    const { status, severity, owner, etag, title } = raw.properties;
-
-    // Check if unassigned
-    const unassigned = isUnassigned(owner);
-
-    // PUT update: set status to "Active", assign owner
-    const updateProps = {
-      title: title,
-      severity,
-      status: 'Active',
-      owner: {
-        ...(OWNER.assignedTo ? { assignedTo: OWNER.assignedTo } : {}),
-        ...(OWNER.userPrincipalName ? { userPrincipalName: OWNER.userPrincipalName } : {}),
-        ...(OWNER.email ? { email: OWNER.email } : {}),
-        ...(OWNER.objectId ? { objectId: OWNER.objectId } : {})
-      }
-    };
-
-    // Try updating
+    // Fetch the existing incident properties to retain non-changed fields
     try {
+      const incident = await getIncidentDetails(ids, token);
+      if (!incident || !incident.properties) {
+        return res.status(400).json({ error: 'incident-not-found' });
+      }
+
+      console.log(`[GET] Incident properties fetched for ${incidentName} at ${new Date().toISOString()}`);
+
+      // Retain existing properties like severity, title, etc.
+      const { severity, title, etag } = incident.properties;
+
+      // Prepare the update payload with only the necessary changes
+      const status = 'Active';  // Hardcoding the status to Active
+      const owner = {
+        assignedTo: OWNER.assignedTo,
+        userPrincipalName: OWNER.userPrincipalName,
+        email: OWNER.email,
+        objectId: OWNER.objectId
+      };
+
+      const updateProps = {
+        title: title,   // Keep the title unchanged
+        severity: severity, // Keep the severity unchanged
+        status: status, // Set status to Active
+        owner: owner    // Set the new owner
+      };
+
+      // Perform the incident update
+      console.log(`[PUT] Updating incident: ${incidentName} at ${new Date().toISOString()}`);
+      
       const { data: after, headers: putHdrs } = await putIncident(ids, token, etag, updateProps);
-      const ap = after.properties || {};
+
+      console.log(`[PUT] Incident updated successfully for ${incidentName} at ${new Date().toISOString()}`);
+      
       return res.json({
         incidentName,
         updated: true,
         reason: 'updated',
-        before: { status, owner: ownerSummary(owner) },
-        after: { status: ap.status, owner: ownerSummary(ap.owner || {}) },
+        before: { status: incident.properties.status, owner: ownerSummary(incident.properties.owner) },
+        after: { status: after.properties.status, owner: ownerSummary(after.properties.owner) },
         tookMs: Date.now() - started,
         requestId: putHdrs['x-ms-request-id'] || putHdrs['x-ms-correlation-request-id'] || null,
         correlationId
       });
-    
-    } catch (e) {
-      const r = e.response;
-      if (r && r.status === 412) {
-        return res.json({
-          incidentName, updated: false, reason: 'race-detected',
-          before: { status, owner: ownerSummary(owner) },
-          tookMs: Date.now() - started,
-          requestId: r.headers?.['x-ms-request-id'] || r.headers?.['x-ms-correlation-request-id'] || null,
-          correlationId
-        });
-      }
+    } catch (err) {
+      console.log(`[ERROR] Error fetching incident details for ${incidentName} at ${new Date().toISOString()},${err.message}`);
       return res.status(502).json({
-        error: 'arm-update-failed',
-        status: r?.status || null,
-        details: r?.data || e.message,
+        error: 'incident-fetch-failed',
+        details: err.message,
         tookMs: Date.now() - started
       });
     }
   } catch (err) {
+    console.log(`[ERROR] Server error occurred at ${new Date().toISOString()}`);
     return res.status(500).json({ error: 'server-error', details: err.message });
   }
 });

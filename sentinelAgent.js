@@ -6,7 +6,7 @@ const CONFIG = {
   CLIENT_SECRET: 'kMj8Q~ECiZEve_tELf02PgNh.dy7K1O4EW8e7bHM',
   TENANT_ID: 'd7ab1225-4649-4cb3-abd5-bc732bed3203',
   SUBSCRIPTION_ID: '789ffe48-9506-43da-b629-b0b9174bad4d',
-  RESOURCE_GROUP: 'socautomationagent',
+  RESOURCE_GROUP: 'SOCAutomationAgent',
   WORKSPACE_NAME: 'SOCAutomation',
   // Optional: set owner to assign the incident
   OWNER: {
@@ -19,7 +19,7 @@ const CONFIG = {
 
 const ARM_API_URL = 'https://management.azure.com';
 const AUTH_URL = `https://login.microsoftonline.com/${CONFIG.TENANT_ID}/oauth2/v2.0/token`;
-const API_VERSION = '2023-02-01'; // Microsoft.SecurityInsights stable API version
+const API_VERSION = '2025-06-01'; // Microsoft.SecurityInsights stable API version
 
 // Validate required configuration early
 function validateConfig() {
@@ -58,7 +58,7 @@ function decodeJwtPayload(token) {
 }
 
 // Acquire ARM access token (client credentials)
-async function getAccessToken() {
+async function getArmToken() {
   const payload = new URLSearchParams();
   payload.append('client_id', CONFIG.CLIENT_ID);
   payload.append('client_secret', CONFIG.CLIENT_SECRET);
@@ -66,16 +66,16 @@ async function getAccessToken() {
   payload.append('scope', 'https://management.azure.com/.default');
 
   try {
-    const response = await axios.post(AUTH_URL, payload);
-    const token = response.data.access_token;
-    const claims = decodeJwtPayload(token);
-    if (claims?.scp) {
-      console.log('Token scopes:', claims.scp);
-    }
-    return token;
+    // const response = await axios.post(AUTH_URL, payload);
+    // const token = response.data.access_token;
+    // const claims = decodeJwtPayload(token);
+    // if (claims?.scp) {
+    //   console.log('Token scopes:', claims.scp);
+    // }
+    return "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6IkpZaEFjVFBNWl9MWDZEQmxPV1E3SG4wTmVYRSIsImtpZCI6IkpZaEFjVFBNWl9MWDZEQmxPV1E3SG4wTmVYRSJ9.eyJhdWQiOiJodHRwczovL21hbmFnZW1lbnQuYXp1cmUuY29tIiwiaXNzIjoiaHR0cHM6Ly9zdHMud2luZG93cy5uZXQvZDdhYjEyMjUtNDY0OS00Y2IzLWFiZDUtYmM3MzJiZWQzMjAzLyIsImlhdCI6MTc1NDg4ODM0NywibmJmIjoxNzU0ODg4MzQ3LCJleHAiOjE3NTQ4OTIyNDcsImFpbyI6IkFXUUFtLzhaQUFBQWtYV284a1h3Znd0eHRCanlsdzMxYVhYOUZoWUxtSmZuemFwYlpWRElKR294dkkzZFNkZFEyd2MrdVRsMkFDcWJJL0FheEhGQkNnZ000VkRwMFRIYW13dVpLcEloa0pwSHNVNUR1N2FaaDN2cG5TUlBGV1JVUWxxVjUyekRjbG5xIiwiYXBwaWQiOiJkNzE5MGZhYS1iM2FjLTRjMGQtYjA5MC1hZGM2NzRiOTcwNWMiLCJhcHBpZGFjciI6IjEiLCJpZHAiOiJodHRwczovL3N0cy53aW5kb3dzLm5ldC9kN2FiMTIyNS00NjQ5LTRjYjMtYWJkNS1iYzczMmJlZDMyMDMvIiwiaWR0eXAiOiJhcHAiLCJvaWQiOiI1MGFkY2Y4OS0yZmUxLTQyMTEtYjc4OC1iOTgwYTk5NzIzNGIiLCJyaCI6IjEuQVhFQUpSS3IxMGxHczB5cjFieHpLLTB5QTBaSWYza0F1dGRQdWtQYXdmajJNQk54QUFCeEFBLiIsInN1YiI6IjUwYWRjZjg5LTJmZTEtNDIxMS1iNzg4LWI5ODBhOTk3MjM0YiIsInRpZCI6ImQ3YWIxMjI1LTQ2NDktNGNiMy1hYmQ1LWJjNzMyYmVkMzIwMyIsInV0aSI6IktRUGVxN1oyRUUtME1DMzlGeTFnQUEiLCJ2ZXIiOiIxLjAiLCJ4bXNfZnRkIjoiNHFNTnp6ZDNwOFJ2bzY5cUJHajdEdjVGbHdjUjBfMUNKU3BLVlQ4NVI4VUJhMjl5WldGalpXNTBjbUZzTFdSemJYTSIsInhtc19pZHJlbCI6IjcgMzIiLCJ4bXNfcmQiOiIwLjQyTGxZQkppTEJRUzRXQVhFbGgxLUgzU1JjUFZYcXVQWDVJVTc5bTBEaWpLS1NSd2UyZnJsVVdKYVY2Tl9KNjdlTmJjX1FVVTVSQVNjUE9vcjJUWWRkMV9sX090Z3otLUdRZ0RBQSIsInhtc190Y2R0IjoxNjMwOTA4NTU0fQ.Q8xJj74DqZZLkfd8VdOVsF96xAyFgEhrVzF4WmaKd_T3mbu7smZDagqSC5scg0eQQdhOZWNNIzV9nYSG3NgzRvN2tNvw7qa_l2mEjm1cUIFPSbkG37DDAbxRGphpla5sbO4FJrpwexjqfMeabEXi_wbvq_wxVdRJTNcu-wzHHKE-F7e4WbgJpXNiDKT9BatWE8bxcrNdWqn1CMcQxr1rkMfCj2IGRBFp0syJpwoo0Jy6HaFCUebS_-7Wt2aBTyzsiijpMfcTW8-PrOxtrrgRkjKiZ2-b1j4adWofVFghmwsi7j-WTlVIMDApZBl6TMIyo3aYJY-6mEtqiUfYymLZ5Q";
   } catch (error) {
-    console.error('Error retrieving access token:', error.response?.data || error.message);
-    throw error;
+    // console.error('Error retrieving access token:', error.response?.data || error.message);
+    // throw error;
   }
 }
 
@@ -85,7 +85,7 @@ function incidentsBasePath() {
 
 // List Microsoft Sentinel incidents
 async function getIncidents() {
-  const token = await getAccessToken();
+  const token = await getArmToken();
   try {
     const url = `${ARM_API_URL}${incidentsBasePath()}`;
     const response = await axios.get(url, {
@@ -111,7 +111,7 @@ async function getIncidents() {
 
 // Get details for a specific Sentinel incident
 async function getIncidentDetails(incidentId) {
-  const token = await getAccessToken();
+  const token = await getArmToken();
   try {
     const url = `${ARM_API_URL}${incidentsBasePath()}/${incidentId}`;
     const response = await axios.get(url, {
@@ -134,7 +134,7 @@ async function getIncidentDetails(incidentId) {
 
 // Update Sentinel incident: status and optional owner assignment
 async function updateIncident(incidentId, { status, owner }) {
-  const token = await getAccessToken();
+  const token = await getArmToken();
   try {
     const url = `${ARM_API_URL}${incidentsBasePath()}/${incidentId}`;
     const body = { properties: {} };
